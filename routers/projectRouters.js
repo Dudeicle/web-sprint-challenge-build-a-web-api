@@ -21,10 +21,14 @@ router.get("/", (req, res) => {
 router.get("/:id", (req, res) => {
 	ProjectDb.get(req.params.id)
 		.then((project) => {
-			res.status(201).json(project);
+			if (!project) {
+				res.status(404).json({ message: "Could not find project" });
+			} else {
+				res.status(201).json(project);
+			}
 		})
 		.catch((error) => {
-			res.status(404).json({ message: "Could not find Project with specified id" });
+			res.status(500).json({ message: "error retrieving the project from database" });
 		});
 }); // WORKING
 router.get("/:id/actions", (req, res) => {
@@ -32,12 +36,14 @@ router.get("/:id/actions", (req, res) => {
 
 	ProjectDb.getProjectActions(id)
 		.then((actions) => {
-			res.status(201).json(actions);
+			if (actions.length < 1) {
+				res.status(404).json({ message: "Could not find action" });
+			} else {
+				res.status(201).json(actions);
+			}
 		})
 		.catch((error) => {
-			res
-				.status(404)
-				.json({ message: "Could not get list of actions associated with given project ID" });
+			res.status(500).json({ message: "Error retrieving action from database" });
 		});
 }); // WORKING
 router.post("/", (req, res) => {
@@ -73,20 +79,93 @@ router.put("/:id", (req, res) => {
 	const id = req.params.id;
 	const changes = req.body;
 
-	ProjectDb.update(id, changes)
-		.then((result) => {
-			res.status(201).json(result);
-		})
-		.catch((error) => {
-			res.status(404).json({ message: "The project with specified ID could not be found" });
-		});
+	if (!changes.name || !changes.description) {
+		res
+			.status(400)
+			.json({ message: "Invalid entries of Name and-or Description, both are required fields!" });
+	} else {
+		ProjectDb.update(id, changes)
+			.then((result) => {
+				res.status(201).json(result);
+			})
+			.catch((error) => {
+				res.status(404).json({ message: "The project with specified ID could not be found" });
+			});
+	}
 }); // WORKING
 
 // ALL ACTION ROUTERS
 
-router.get("/:id/action/:id", (req, res) => {});
-router.post("/:id/action", (req, res) => {});
-router.put("/:id/action/:id", (req, res) => {});
-router.delete("/:id/action/:id", (req, res) => {});
+router.get("/:id/action/:idaction", (req, res) => {
+	const id = req.params.id;
+	const Aid = req.params.idaction;
+
+	ProjectDb.getProjectActions(id)
+		.then((actions) => {
+			if (actions.length < 1) {
+				res.status(404).json({ message: "Project of specified ID has no actions!" });
+			} else {
+				res.status(201).json(actions[Aid]);
+			}
+		})
+		.catch((error) => {
+			res.status(500).json({ message: "Error retrieving action from database" });
+		});
+}); // WORKING **********
+router.post("/:id/action", (req, res) => {
+	const action = req.body;
+
+	if (!action.project_id || !action.description || !action.notes) {
+		res.status(400).json({
+			message:
+				"Invalid entry! The fields of -project_id- -description- -notes- are required! And must be filled in!",
+		});
+	} else {
+		ActionDb.insert(action)
+			.then((action) => {
+				res.status(201).json(action);
+			})
+			.catch((error) => {
+				res.status(500).json({ message: "Could not add action to project!" });
+			});
+	}
+}); // WORKING
+router.put("/:id/action/:id", (req, res) => {
+	let updatedAction = req.body;
+
+	if (!updatedAction.description || !updatedAction.notes) {
+		res.status(400).json({ message: "Please provide valid a description and title" });
+	} else {
+		try {
+			ActionDb.get(req.params.id)
+				.then((action) => {
+					ActionDb.update(action.id, updatedAction)
+						.then((result) => {
+							res.status(200).json(result);
+						})
+						.catch((error) => {
+							res.status(500).json({ message: "Action update failed!" });
+						});
+				})
+				.catch((error) => {
+					console.log(error);
+					res.status(500).json({ message: "error retrieving the project actions" });
+				});
+		} catch {
+			res.status(500).json({
+				error: "There was an error while saving the updated action to the database",
+			});
+		}
+	}
+}); // WORKING
+router.delete("/:id/action/:id", (req, res) => {
+	ActionDb.remove(req.params.id)
+		.then((result) => {
+			res.status(200).json({ message: "Action was nuked from orbit!" });
+		})
+		.catch((error) => {
+			res.status(404).json({ message: "Could not find action to delete" });
+		});
+}); // WORKING
 
 module.exports = router;
