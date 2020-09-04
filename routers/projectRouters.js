@@ -98,7 +98,7 @@ router.put("/:id", (req, res) => {
 
 router.get("/:id/action/:idaction", (req, res) => {
 	const id = req.params.id;
-	const Aid = req.params.idaction;
+	const Aid = Number(req.params.idaction) - 1;
 
 	ProjectDb.getProjectActions(id)
 		.then((actions) => {
